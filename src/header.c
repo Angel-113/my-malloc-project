@@ -10,11 +10,11 @@ u64 get_size ( header_t header ) {
 }
 
 bool get_color ( header_t header ) { /* second MSB */
-    return header >> SECOND_MSB;
+    return header >> SECOND_MSB & 1;
 }
 
 bool get_status ( header_t header ) { /* MSB */
-    return header >> MSB;
+    return header >> MSB & 1;
 }
 
 void set_size ( header_t* header, u64 size ) {

@@ -1,5 +1,6 @@
 #include "../include/base.h"
 #include "../include/rb_tree.h"
+#include "header.h"
 #include <stdbool.h>
 #include <stdio.h>
 
@@ -25,9 +26,9 @@ static void left_rotate ( node_t** root, node_t* node );
 static void right_rotate ( node_t** root, node_t* node );
 static void left_right_rotate ( node_t** root, node_t* node );
 static void right_left_rotate ( node_t** root, node_t* node ); 
-static bool fix_deletion ( node_t** root, node_t* result, bool black_token );
-static bool fix_subtree ( node_t** root, node_t* current_subtree ); 
-static void swap_nodes ( node_t* inorder, node_t* node ); /* Just changes the tree hierarchy */
+static void fix_deletion ( node_t** root, node_t* result, bool black_token );
+static void fix_subtree ( node_t** root, node_t* current_subtree ); 
+static void swap_nodes ( node_t** root,  node_t* inorder, node_t* node ); /* Just changes the tree hierarchy */
 static ChildKind get_child_kind ( node_t* node ); 
 
 /* Implementations */
@@ -38,10 +39,15 @@ node_t* insert ( node_t** root, node_t* new_node ) { /* top-down insertion */
     node_t* parent = __sentinel; 
 
     while ( current != __sentinel ) {
+        if ( get_color(current->left->header) && get_color(current->right->header) ) {
+            set_color(&current->header, __red);
+            set_color(&current->left->header, __black);
+            set_color(&current->right->header, __black);
+            if ( current == *root ) set_color( &(*root)->header, __black );
+            else if ( get_color(current->parent->header) ) fix_subtree(root, current);
+        }
         parent = current; 
         current = target < get_size(current->header) ? current->left : current->right;
-        if ( get_color(current->left->header) && get_color(current->right->header) )
-            fix_subtree(root, current); 
     }
 
     /* insert node */
@@ -50,7 +56,10 @@ node_t* insert ( node_t** root, node_t* new_node ) { /* top-down insertion */
     (*child)->parent = parent;
         
     /* perform last fix if needed */
-    fix_subtree(root, *child);  
+    if ( get_color((*child)->parent->header) )
+        fix_subtree(root, *child);  
+
+    set_color(&(*root)->header, __black); 
     
     return new_node;     
 }
@@ -85,7 +94,7 @@ node_t* delete ( node_t** root, node_t* node ) { /* bottom-up deletion */
         disconnect_node(node);
     }
     else { /* two child */
-        swap_nodes(result, node);
+        swap_nodes(root, result, node);
         delete(root, node); 
     }
 
@@ -202,16 +211,16 @@ static void right_rotate ( node_t** root, node_t* node ) {
 }
 
 static void left_right_rotate ( node_t** root, node_t* node ) {
-    left_rotate(root, node->right);
+    left_rotate(root, node->left);
     right_rotate(root, node);
 }
 
 static void right_left_rotate ( node_t** root, node_t* node ) {
-    right_rotate(root, node->left);
+    right_rotate(root, node->right); 
     left_rotate(root, node);
 }
 
-static void swap_nodes ( node_t* inorder, node_t* node ) { /* inorder->left is __sentinel */
+static void swap_nodes ( node_t** root,  node_t* inorder, node_t* node ) { /* inorder->left is __sentinel */
     node_t* node_parent = node->parent;
     node_t* node_left = node->left;
     node_t* node_right = node->right;
@@ -222,10 +231,10 @@ static void swap_nodes ( node_t* inorder, node_t* node ) { /* inorder->left is _
     bool color_inor = get_color(inorder->header); 
 
     node_t** new_node = node_parent != __sentinel ?
-                        (node_parent->left == node ? &node_parent->left : &node_parent->right) : &node;
+                    (node_parent->left == node ? &node_parent->left : &node_parent->right) : root;
     
     node_t** new_inorder = inor_parent != node ? 
-                            (inor_parent->left == inorder ? &inor_parent->left : &inor_parent->right) : &inorder;
+                        (inor_parent->left == inorder ? &inor_parent->left : &inor_parent->right) : &inorder;
 
     /* perform swap by indirect linking */
     (*new_node) = inorder;
@@ -235,7 +244,7 @@ static void swap_nodes ( node_t* inorder, node_t* node ) { /* inorder->left is _
     (*new_node)->right = node_right == inorder ? *new_inorder : node_right;
     (*new_node)->left = node_left;
 
-    (*new_inorder)->parent = inor_parent; 
+    (*new_inorder)->parent = inor_parent != node ? inor_parent : *new_node; 
     (*new_inorder)->right = inor_right;
     (*new_inorder)->left = __sentinel;
 
@@ -256,7 +265,7 @@ static node_t* get_substitute ( node_t* node ) {
     return result; 
 }
 
-static bool fix_deletion ( node_t** root, node_t* result, bool black_token ) { /* bottom-up deletion */
+static void fix_deletion ( node_t** root, node_t* result, bool black_token ) { /* bottom-up deletion */
     node_t* current = result;
     
     while ( current != *root && black_token ) { /* push the black_token up the tree */
@@ -285,9 +294,13 @@ static bool fix_deletion ( node_t** root, node_t* result, bool black_token ) { /
             node_t** far = current_kind == LEFT ? &sibling->right : &sibling->left;  
 
             if ( !get_color((*far)->header) ) 
-                current_kind == LEFT ? left_rotate(root, sibling) : right_rotate(root, sibling); 
-            
-            current_kind == LEFT ? right_rotate(root, current->parent) : left_rotate(root, current->parent); 
+                current_kind == LEFT ? right_rotate(root, sibling) : left_rotate(root, sibling); 
+
+            set_color(&sibling->header, get_color(current->parent->header));
+            set_color(&current->parent->header, __black);
+            set_color(&(*far)->header, __black); 
+                        
+            current_kind == LEFT ? left_rotate(root, current->parent) : right_rotate(root, current->parent); 
             black_token = !black_token;       
         }
         else { /* black sibling and two black nephews */
@@ -302,34 +315,26 @@ static bool fix_deletion ( node_t** root, node_t* result, bool black_token ) { /
         
         current = grandparent; 
     } 
-      
-    return true;
 }
 
-static bool fix_subtree ( node_t** root, node_t* current_subtree ) { /* fix insertion before inserting */
-    set_color(&current_subtree->header, __red);
-    set_color(&current_subtree->left->header, __black);
-    set_color(&current_subtree->right->header, __black);
-
+static void fix_subtree ( node_t** root, node_t* current_subtree ) { /* fix insertion before inserting */
     node_t* parent = current_subtree->parent;
-    node_t* grandpa = parent->parent; 
+    node_t* grandpa = parent->parent;
+    node_t* sibling = parent == grandpa->left ? grandpa->right : grandpa->left; 
 
-    if ( get_color(current_subtree->parent->header) ) { /* perform fixes */
+    if ( get_color(current_subtree->parent->header) && !get_color(sibling->header) ) { /* perform fixes */
         ChildKind current_kind = get_child_kind(current_subtree);
         ChildKind parent_kind = get_child_kind(current_subtree->parent);
 
         if ( current_kind == parent_kind ) { /* straight line */
             set_color(&parent->header, __black);
             set_color(&grandpa->header, __red); 
-            current_kind == LEFT ? right_rotate(root, current_subtree) : left_rotate(root, current_subtree);
+            current_kind == LEFT ? right_rotate(root, grandpa) : left_rotate(root, grandpa);
         }
         else { /* zig-zag */
             set_color(&grandpa->header, __red);
             set_color(&current_subtree->header, __black);  
-            current_kind == LEFT ? right_left_rotate(root, current_subtree) : left_right_rotate(root, current_subtree);  
+            current_kind == LEFT ? right_left_rotate(root, grandpa) : left_right_rotate(root, grandpa);  
         }
-    }
-
-    set_color(&(*root)->header, __black); 
-    return true;
+    }    
 }

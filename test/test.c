@@ -16,7 +16,7 @@ static node_t* nodes[MAX_NODES] = { 0 };
 static pcg32_random_t my_rng = { 0 };
 
 /* helpers */
-static void init_rng ( void );
+static void init_rng ( time_t seed );
 static u64 get_rng64 ( void );
 static u32 get_rng32 ( void );
 static void init_tester ( void );
@@ -75,7 +75,7 @@ static bool tree_test_insertion ( void ) {
 
 static bool count_blacks ( node_t* root, i64* blacks ) {
     if ( root == __sentinel ) {
-        (*blacks)++;
+        (*blacks)++; 
         return true; 
     }
     else if ( !get_color(root->header) ) (*blacks)++;
@@ -147,14 +147,15 @@ static void insert_nodes ( void ) {
     puts(">Deleting nodes"); 
     while ( n_nodes-- ) {
         i64 idx = get_rng32() % 1000;
-        while ( !nodes[idx] ) idx = get_rng64() % 1000;
-        delete(&root, nodes[idx]);  
+        while ( !nodes[idx] ) idx = get_rng32() % 1000;
+        delete(&root, nodes[idx]);
+        nodes[idx] = NULL; 
     }
     puts(">Finished deleting nodes"); 
 }
 
-static void init_rng ( void ) {
-    pcg32_srandom_r(&my_rng, time(NULL), (intptr_t)&my_rng); 
+static void init_rng ( time_t seed ) {
+    pcg32_srandom_r(&my_rng, seed, (intptr_t)&my_rng); 
 }
 
 static u64 get_rng64 ( void ) { /* for getting a random 64 bit integer */
@@ -167,8 +168,8 @@ static u32 get_rng32 ( void ) { /* generated a 32 bit integer */
 
 static void init_tester ( void ) { 
     if ( root ) return;
-    init_rng();
-    u64 random_size = get_rng64() % 1000;
+    init_rng(time(NULL));
+    u64 random_size = get_rng32() % 1000;
     root = malloc( sizeof(node_t) + sizeof(header_t) + random_size * sizeof(unsigned char) );
     root = init_node(root, random_size, __black, __free); 
 } 

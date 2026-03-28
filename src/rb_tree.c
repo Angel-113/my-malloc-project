@@ -78,7 +78,7 @@ node_t* delete ( node_t** root, node_t* node ) { /* bottom-up deletion */
     node_t* result = get_substitute(node);
     node_t* parent = node->parent;
     node_t** new_child = node == *root ?
-                        &(*root) : (parent->left == node ? &parent->left : &parent->right); 
+                        root : (parent->left == node ? &parent->left : &parent->right); 
     
     bool black_token = !get_color(node->header);
 
@@ -104,6 +104,21 @@ node_t* delete ( node_t** root, node_t* node ) { /* bottom-up deletion */
     fix_deletion(root, result, parent, hole_kind, black_token);
         
     return node; 
+}
+
+/*
+A lazy deletion routine just to give a working
+version of this red-black tree to start fixing
+the rest of the project
+*/
+
+node_t* lazy_deletion ( node_t** root, node_t** node ) {
+    if ( *node == *root ) {
+        fprintf(stderr, "Cannot delete root in lazy deletion\n");
+        return __sentinel; 
+    }
+    set_status(&(*node)->header, __in_use);
+    return *node; 
 }
 
 node_t* init_node ( void* ptr, u64 size, bool color, bool status ) { /* init node assumes that ptr will be node's address */
@@ -223,6 +238,7 @@ static void right_left_rotate ( node_t** root, node_t* node ) {
     left_rotate(root, node);
 }
 
+
 static void swap_nodes ( node_t** root,  node_t* inorder, node_t* node ) { /* inorder->left is __sentinel */
     node_t* node_parent = node->parent;
     node_t* node_left = node->left;
@@ -260,15 +276,14 @@ static void swap_nodes ( node_t** root,  node_t* inorder, node_t* node ) { /* in
     set_color(&(*new_node)->header, color_node); 
 }
 
-static node_t* get_substitute ( node_t* node ) {
+static node_t* get_substitute ( node_t* node ) { 
     node_t* result = __sentinel; 
-    if ( node->left != __sentinel && node->right != __sentinel ) {
+    if ( node->left != __sentinel && node->right != __sentinel ) { /* find inorder successor */
         result = node->right;
         while ( result->left != __sentinel ) result = result->left;
     }
-    else if ( node->left != __sentinel || node->right != __sentinel ) 
-        result = node->left != __sentinel ? node->left : node->right; 
-    
+    else if ( node->right != __sentinel ) result = node->right;
+    else if ( node->left != __sentinel ) result = node->left;  
     return result; 
 }
 
@@ -328,7 +343,9 @@ static void fix_deletion ( node_t** root, node_t* result, node_t* parent, ChildK
         
         current = grandparent;
         parent = grandparent->parent; 
-    } 
+    }
+
+    set_color(&(*root)->header, __black);  
 }
 
 static void fix_subtree ( node_t** root, node_t* current_subtree ) { /* fix insertion before inserting */

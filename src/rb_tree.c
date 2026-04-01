@@ -106,21 +106,6 @@ node_t* delete ( node_t** root, node_t* node ) { /* bottom-up deletion */
     return node; 
 }
 
-/*
-A lazy deletion routine just to give a working
-version of this red-black tree to start fixing
-the rest of the project
-*/
-
-node_t* lazy_deletion ( node_t** root, node_t** node ) {
-    if ( *node == *root ) {
-        fprintf(stderr, "Cannot delete root in lazy deletion\n");
-        return __sentinel; 
-    }
-    set_status(&(*node)->header, __in_use);
-    return *node; 
-}
-
 node_t* init_node ( void* ptr, u64 size, bool color, bool status ) { /* init node assumes that ptr will be node's address */
     node_t* node = ptr;
     set_color(&node->header, color);

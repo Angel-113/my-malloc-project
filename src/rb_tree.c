@@ -2,6 +2,7 @@
 #include "../include/rb_tree.h"
 #include "header.h"
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 
 static node_t __sentinel_value = {
@@ -141,7 +142,12 @@ node_t* get_node ( void* ptr ) { /* get_node assumes ptr = (u8 *)original_node +
     return (node_t *)((u8 *)ptr - sizeof(header_t)); 
 }
 
-node_t* merge_nodes ( node_t* a, node_t* b ) { /* merge_nodes assumes a and b are free memory contiguous nodes */
+node_t* merge_nodes ( node_t* a, node_t* b ) { /* merge_nodes assumes a and b are memory contiguous nodes */
+    if ( a == b ) {
+        print_error("Trying to merge the same node\n");
+        return __sentinel;  
+    }
+    
     node_t* left = a < b ? a : b;
     node_t* right = left == a ? b : a; 
 
@@ -150,14 +156,9 @@ node_t* merge_nodes ( node_t* a, node_t* b ) { /* merge_nodes assumes a and b ar
         return __sentinel;  
     }
     
-    if ( get_status(a->header) || get_status(b->header) ) {
-        print_error("Trying to merge non-free nodes\n");
-        return __sentinel; 
-    }
-
     u64 new_size = get_size(a->header) + get_size(b->header) + 2 * sizeof(header_t); 
     left = init_node(left, new_size, __red, __free); 
-
+    
     return left; 
 }
 

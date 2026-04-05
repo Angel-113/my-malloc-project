@@ -57,7 +57,7 @@ static bool test_helper ( void ) {
 
 static bool tree_test_deletion ( void ) {
     puts("--> Testing deletion <--"); 
-    delete_nodes(get_rng32() % 100);
+    delete_nodes(600);
     bool result = test_helper();
     fprintf( !result ? stderr : stdout, !result ? "\033[0;31m --> Tree test deletion failed <-- \033[0m\n" : "\x1b[32m --> Tree test deletion passed <-- \x1b[0m\n" ); 
     puts("--> Finished test deletion <--");
@@ -131,7 +131,7 @@ static void insert_nodes ( void ) {
     if ( root == __sentinel || !root ) init_tester();
     puts(">Inserting nodes");  
     for ( i32 i = 0; i < MAX_NODES; i++ ) {
-        u64 random_size = get_rng32() % 100;
+        u64 random_size = get_rng32() % 500;
         nodes[i] = malloc(sizeof(node_t) + sizeof(header_t) + random_size * sizeof(unsigned char));
         nodes[i] = init_node(nodes[i], random_size, __red, __free);
         insert(&root, nodes[i]);

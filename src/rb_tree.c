@@ -88,10 +88,8 @@ node_t* delete ( node_t** root, node_t* node ) { /* bottom-up deletion */
         (*new_child) = __sentinel; 
         disconnect_node(node); 
     }
-    else if ( result == node->left || result == node->right ) { /* one child */
+    else if ( node->left == __sentinel || node->right == __sentinel ) { /* one child */
         (*new_child) = result;
-        (*new_child)->left = result->left;
-        (*new_child)->right = result->right;
         (*new_child)->parent = new_child == &(*root) ? __sentinel : parent; 
         disconnect_node(node);
     }
@@ -193,7 +191,7 @@ static void left_rotate ( node_t** root,  node_t* node ) { /* perform rotation b
 
     current_parent->parent = *new_node;
     current_parent->right = new_right;
-    new_right->parent = current_parent; 
+    new_right->parent = new_right != __sentinel ? current_parent : __sentinel; 
 }
 
 static void right_rotate ( node_t** root, node_t* node ) {
@@ -210,7 +208,7 @@ static void right_rotate ( node_t** root, node_t* node ) {
 
     current_parent->parent = *new_node;
     current_parent->left = new_left;
-    new_left->parent = current_parent;
+    new_left->parent = new_left != __sentinel ? current_parent : __sentinel;
 }
 
 static void left_right_rotate ( node_t** root, node_t* node ) {
@@ -223,42 +221,44 @@ static void right_left_rotate ( node_t** root, node_t* node ) {
     left_rotate(root, node);
 }
 
-
-static void swap_nodes ( node_t** root,  node_t* inorder, node_t* node ) { /* inorder->left is __sentinel */
+static void swap_nodes ( node_t** root, node_t* inorder, node_t* node ) {
     node_t* node_parent = node->parent;
-    node_t* node_left = node->left;
-    node_t* node_right = node->right;
+    node_t* node_left   = node->left;
+    node_t* node_right  = node->right;
     node_t* inor_parent = inorder->parent;
-    node_t* inor_right = inorder->right;
+    node_t* inor_right  = inorder->right;
 
     bool color_node = get_color(node->header);
     bool color_inor = get_color(inorder->header); 
 
     node_t** new_node = node_parent != __sentinel ?
-                    (node_parent->left == node ? &node_parent->left : &node_parent->right) : root;
-    
-    node_t** new_inorder = inor_parent != node ? 
-                        (inor_parent->left == inorder ? &inor_parent->left : &inor_parent->right) : &inorder;
+        (node_parent->left == node ? &node_parent->left : &node_parent->right) : root;
+
+    node_t** new_inorder = inor_parent != node ?
+        (inor_parent->left == inorder ? &inor_parent->left : &inor_parent->right) : &node->right;
 
     /* perform swap by indirect linking */
-    (*new_node) = inorder;
-    (*new_inorder) = node; 
+    (*new_node)    = inorder;
+    (*new_inorder) = node;
 
-    (*new_node)->parent = node_parent; 
-    (*new_node)->right = node_right == inorder ? *new_inorder : node_right;
-    (*new_node)->left = node_left;
+    /* fix inorder's new position (takes node's place) */
+    inorder->parent = node_parent;
+    inorder->left   = node_left;
+    inorder->right  = inor_parent == node ? node : node_right;
 
-    if ( node_left != __sentinel ) node_left->parent = *new_node;
-    if ( node_right != inorder && node_right != __sentinel ) node_right->parent = *new_node;
-    if ( inor_right != __sentinel ) inor_right->parent = *new_inorder;
+    /* fix node's new position (takes inorder's place) */
+    node->parent = inor_parent != node ? inor_parent : inorder;
+    node->right  = inor_right;
+    node->left   = __sentinel;
 
-    (*new_inorder)->parent = inor_parent != node ? inor_parent : *new_node; 
-    (*new_inorder)->right = inor_right;
-    (*new_inorder)->left = __sentinel;
+    /* update children's parent pointers */
+    if ( node_left  != __sentinel ) node_left->parent  = inorder;
+    if ( node_right != inorder && node_right != __sentinel ) node_right->parent = inorder;
+    if ( inor_right != __sentinel ) inor_right->parent = node;
 
-    /* preserve color: if node was black, then, new_node is black  */
-    set_color(&(*new_inorder)->header, color_inor);
-    set_color(&(*new_node)->header, color_node); 
+    /* preserve colors */
+    set_color(&inorder->header, color_node);
+    set_color(&node->header, color_inor);
 }
 
 static node_t* get_substitute ( node_t* node ) { 

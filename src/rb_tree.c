@@ -118,11 +118,23 @@ node_t* init_node ( void* ptr, u64 size, bool color, bool status ) { /* init nod
 
 node_t* search ( node_t* root, u64 target ) { /* best fit algorithm */
     node_t* current = root;
-    while ( current->left != __sentinel && current->right != __sentinel ) {
-        if ( get_size(current->header) == target ) break; 
-        current = target < get_size(current->header) ? current->left : current->right;  
+    node_t* ans = __sentinel;
+    u64 min_size = (u64) 1e18;
+     
+    while ( current != __sentinel ) { /* look for the node that minimizes the difference */
+         u64 size = get_size(current->header);
+         if ( size == target ) {
+             ans = current;
+             break; 
+         }
+         else if (size > target && (size - target) < (size - min_size)) {
+             ans = current;
+             current = current->left; 
+         }
+         else current = current->right; 
     }
-    return current; 
+    
+    return ans; 
 }
 
 node_t* get_node ( void* ptr ) { /* get_node assumes ptr = (u8 *)original_node + sizeof(Header); */

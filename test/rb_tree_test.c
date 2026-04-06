@@ -6,7 +6,8 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define NODES_TO_INSERT MAX_NODES
+#define MAX_NODES 2000
+#define NODES_TO_INSERT 1000
 #define NODES_TO_DELETE 600
 
 static node_t* root = NULL;

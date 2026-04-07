@@ -24,6 +24,7 @@ target_include_directories(malloc_core PUBLIC include)
 add_executable(run_tests
     test/test.c
     test/rand.c
+    test/rb_tree_test.c
 )
 
 # Link the executable to your malloc core

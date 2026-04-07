@@ -18,6 +18,7 @@ static pcg32_random_t my_rng = { 0 };
 static void init_rng ( time_t seed );
 static u64 get_rng64 ( void );
 static u32 get_rng32 ( void );
+static u32 get_rng32_bounded ( u32 bound ); 
 static void init_tester ( void );
 static void insert_nodes ( u32 nodes );
 static void delete_nodes ( u32 nodes );
@@ -171,7 +172,7 @@ static void insert_nodes ( u32 n_nodes ) {
     puts("");
     puts(">Inserting nodes");  
     for ( i32 i = 0; i <= n_nodes % MAX_NODES; i++ ) {
-        u64 random_size = get_rng32() % 500;
+        u64 random_size = get_rng32_bounded(500);
         nodes[i] = malloc(sizeof(node_t) + sizeof(header_t) + random_size * sizeof(unsigned char));
         nodes[i] = init_node(nodes[i], random_size, __red, __free);
         insert(&root, nodes[i]);
@@ -207,6 +208,10 @@ static u64 get_rng64 ( void ) { /* for getting a random 64 bit integer */
 
 static u32 get_rng32 ( void ) { /* generated a 32 bit integer */
     return pcg32_random_r(&my_rng); 
+}
+
+static u32 get_rng32_bounded ( u32 bound ) {
+    return pcg32_boundedrand_r(&my_rng, bound); 
 }
 
 static void init_tester ( void ) { 

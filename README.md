@@ -27,4 +27,4 @@ This works as metadata of every node.
 - `extern node_t* init_node ( void* ptr )`. This function takes the memory address `(unsigned long long) ptr` and from there, it initialize a `node_t*`.
 - `extern node_t* get_next_node ( node_t* node )`. Given a node, it returns the immediate next in the contiguous memory block.
 - `extern node_t* get_prev_node ( node_t* node )`. Given a node, it returns the immediate previous node in the contiguous memory block.
-- `extern node_t* merge_nodes ( node_t* a, node_t* b )`. Given two memory contiguous nodes, this function returns a merged node of size `get_size(a->header) + get_size(b->header)`. 
+- `extern node_t* merge_nodes ( node_t* a, node_t* b )`. Given two memory contiguous nodes, this function returns a merged node of size `get_size(a->header) + get_size(b->header) + 2 * sizeof(header_t)`. 

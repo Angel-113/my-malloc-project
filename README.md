@@ -1,6 +1,6 @@
 # My Simple Malloc
 
-This project is a personal project to understand how does the implementation of gnu's dynamic memory allocation (`malloc`) work.
+This is a personal project to understand how does the implementation of gnu's dynamic memory allocation (`malloc`) work.
 The implementation uses at its core an special type of self-balancing binary search tree: Red-Black tree. It's something a bit
 different cause the data managed by this tree are actually memory segments so while the insertion logic is the same, the deletion
 pipeline changes a little. Instead of swapping values with the inorder-succesor node (in the case of wanting to eliminate a node

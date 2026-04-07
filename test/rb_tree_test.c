@@ -6,9 +6,9 @@
 #include <math.h>
 #include <stdlib.h>
 
-#define MAX_NODES 2000
-#define NODES_TO_INSERT 1000
-#define NODES_TO_DELETE 600
+#define MAX_NODES 100000
+#define NODES_TO_INSERT 50000
+#define NODES_TO_DELETE 50000
 
 static node_t* root = NULL;
 static node_t* nodes[MAX_NODES] = { 0 }; 
@@ -28,10 +28,54 @@ static bool count_blacks ( node_t* root, i64* blacks );
 static bool red_root ( node_t* root );
 static bool red_red ( node_t* node );
 
+static double get_time ( struct timespec start, struct timespec end ); 
+
+void tree_test_performance ( void ) { /* This function intends to be sort of a heavy test */
+    puts("\033[36mPerformance test\033[0m");
+    struct timespec start, end; 
+
+    u32 limit_insertion =  NODES_TO_INSERT; 
+    u32 limit_deletion = NODES_TO_DELETE; 
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    insert_nodes(limit_insertion);
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    double result_insertion = get_time(start, end);  
+
+    /* In order to not introduce false time, I'm going to delete the first $limit_deletion$ nodes */
+    puts(">Deleting nodes");
+    clock_gettime(CLOCK_MONOTONIC, &start);
+    for ( i32 i = 0; i < limit_deletion; i++ ) {
+        node_t* node = nodes[i];
+        delete(&root, node); 
+    }
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    puts(">Finished deleting secuential nodes");  
+    double result_deletion = get_time(start, end);  
+    puts("");
+    
+    puts("\033[36m--> Performance Report <--  \033[0m");
+    puts("");
+    fprintf(stdout, "\x1b[32mTotal time insertion (%ld)\x1b[0m: %f | \x1b[32maverage time per insertion\x1b[0m: %f \n",
+            limit_insertion, result_insertion, (result_insertion/(float)limit_insertion) );
+    fprintf(stdout, "\x1b[32mTotal time deletion (%ld)\x1b[0m: %f | \x1b[32maverage time per deletion\x1b[0m: %f \n",
+            limit_deletion, result_deletion, (result_deletion/(float)limit_deletion) ); 
+    puts("");
+    puts("\033[36mPerformance test finished\033[0m");  
+}
+
+static double get_time( struct timespec start, struct timespec end ) {
+    return (end.tv_sec - start.tv_sec) + (end.tv_nsec - start.tv_nsec) / 1e9; 
+}
+
 bool tree_test( void ) {
+    puts("");
+    puts("\033[36mTest initiated\033[0m"); 
     init_tester(); 
     if ( !tree_test_insertion(NODES_TO_INSERT) ) return false;
-    if ( !tree_test_deletion(NODES_TO_DELETE) ) return false;    
+    if ( !tree_test_deletion(NODES_TO_DELETE) ) return false;
+    puts("\033[36mTest finished\033[0m");
+    puts("");
     return true; 
 }
 
@@ -45,20 +89,26 @@ static bool test_helper ( void ) {
 }
 
 bool tree_test_deletion ( u32 n_nodes ) {
+    puts("");
     puts("--> Testing deletion <--"); 
-    delete_nodes(n_nodes % MAX_NODES);
+    delete_nodes(n_nodes);
     bool result = test_helper();
-    fprintf( !result ? stderr : stdout, !result ? "\033[0;31m --> Tree test deletion failed <-- \033[0m\n" : "\x1b[32m --> Tree test deletion passed <-- \x1b[0m\n" ); 
+    fprintf( !result ? stderr : stdout, !result ? "\033[0;31m --> Tree test deletion failed <-- \033[0m\n" : "\x1b[32m --> Tree test deletion passed <-- \x1b[0m\n" );
+    puts("");
     puts("--> Finished test deletion <--");
+    puts("");
     return result;  
 }
 
 bool tree_test_insertion ( u32 n_nodes ) {
+    puts("");
     puts("--> Testing insertion <--"); 
     insert_nodes(n_nodes);
     bool result = test_helper();  
     fprintf( !result ? stderr : stdout, !result ? "\033[0;31m --> Tree test insertion failed <-- \033[0m\n" : "\x1b[32m --> Tree test insertion passed <-- \x1b[0m\n" ); 
+    puts("");
     puts("--> Finished test insertion <--"); 
+    puts("");
     return result; 
 }
 
@@ -118,6 +168,7 @@ static bool red_red ( node_t* root ) {
 
 static void insert_nodes ( u32 n_nodes ) {
     if ( root == __sentinel || !root ) init_tester();
+    puts("");
     puts(">Inserting nodes");  
     for ( i32 i = 0; i <= n_nodes % MAX_NODES; i++ ) {
         u64 random_size = get_rng32() % 500;
@@ -125,7 +176,8 @@ static void insert_nodes ( u32 n_nodes ) {
         nodes[i] = init_node(nodes[i], random_size, __red, __free);
         insert(&root, nodes[i]);
     }
-    puts(">Finished inserting nodes"); 
+    puts(">Finished inserting nodes");
+    puts(""); 
 }
 
  static void delete_nodes ( u32 n_nodes ) {
@@ -133,14 +185,16 @@ static void insert_nodes ( u32 n_nodes ) {
         fprintf(stderr, "Cannot delete nodes from an empty tree (root == NULL)\n");
         return; 
     }
+    puts("");
     puts(">Deleting nodes"); 
     while ( n_nodes-- ) {
-        i64 idx = get_rng32() % 1000;
-        while ( !nodes[idx] ) idx = get_rng32() % 1000;
+        i64 idx = get_rng32() % MAX_NODES;
+        while ( !nodes[idx] ) idx = get_rng32() % MAX_NODES;
         delete(&root, nodes[idx]);
         nodes[idx] = NULL; 
     }
-    puts(">Finished deleting nodes"); 
+    puts(">Finished deleting nodes");
+    puts(""); 
 }
 
 static void init_rng ( time_t seed ) {

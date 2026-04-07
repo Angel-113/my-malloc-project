@@ -1,8 +1,7 @@
 #include "../include/rb_tree_test.h"
 
 int main( void ) {
-    puts("\033[36mTest initiated\033[0m"); 
-    tree_test();
-    puts("\033[36mTest finished\033[0m"); 
+    bool test = tree_test();
+    if ( test ) tree_test_performance();
     return 0; 
 }

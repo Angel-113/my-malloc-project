@@ -121,16 +121,16 @@ node_t* search ( node_t* root, u64 target ) { /* best fit algorithm */
     node_t* current = root;
     node_t* ans = __sentinel;
     u64 min_size = (u64) 1e18;
-     
+    
     while ( current != __sentinel ) { /* look for the node that minimizes the difference */
          u64 size = get_size(current->header);
          if ( size == target ) {
              ans = current;
              break; 
          }
-         else if (size > target && (size - target) < (size - min_size)) {
+         else if ( size > target && (size - target) < (size - min_size) ) {
              ans = current;
-             current = current->left; 
+             current = current->left;
          }
          else current = current->right; 
     }

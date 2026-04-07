@@ -63,7 +63,7 @@ void* reallocate ( void* ptr, u64 size ) {
     void* new_ptr = allocate ( size ); 
     if ( !new_ptr ) {
         print_error("Malloc function returned NULL ptr\n"); 
-        return NULL;
+        return NULL; 
     }
     return memcopy(ptr, new_ptr, size) ? new_ptr : NULL; /* let the user handle the NULL case */ 
 }
@@ -78,13 +78,12 @@ void deallocate ( void* ptr ) {
 
     set_status(&node->header, __free);
 
-    header_t prev_footer = (header_t)( (u8*)node - sizeof(header_t) );
-    node_t* prev_node = (node_t *)( (u8*)node - (2 * sizeof(header_t) + get_size(prev_footer)) ); 
-    node_t* next_node = (node_t *)( (u8*)node + 2 * sizeof(header_t) + get_size(node->header) );
+    node_t* prev_node = get_prev_node(node); 
+    node_t* next_node = get_next_node(node);
 
     /* merge nodes */    
     node_t* merged_node = __sentinel;
-        if ( get_status(prev_node->header) ) {
+    if ( get_status(prev_node->header) ) {
         delete(get_current_root(), prev_node);
         merged_node = merge_nodes(prev_node, node); 
     }

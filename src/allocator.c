@@ -1,11 +1,14 @@
 #include "../include/allocator.h"
 #include "../include/base.h"
 #include "../include/rb_tree.h"
+#include "header.h"
+#include <stdio.h>
 #include <sys/mman.h>
 
 #define PAGES( size ) (((size) + (PAGE - 1)) & ~(PAGE - 1))
 #define PAGE 4092
 #define MAX_THREADS 10
+#define MIN_SEG_SIZE 3 * sizeof(header_t)
 
 static u32 id_current_root = 0; 
 static node_t* current_roots[ MAX_THREADS ] = { 0 }; 
@@ -14,107 +17,112 @@ static node_t** get_current_root ( void );
 static u16 get_current_root_id ( void ); 
 static bool memcopy ( void* src, void* dest, u64 size );
 
+static void* search_node ( node_t** root, u64 size ); 
+static void* create_root ( node_t** root, u64 size ); 
+static void* split_segment ( node_t** root, u64 size ); 
+
 static node_t* add_mem_page( u64 size ) { /* syscall for mempages */
     return  mmap(NULL, PAGES(size), PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, 0, 0);
 }
 
 void* allocate ( u64 size ) { 
-    void* ptr = NULL;
-    node_t** root = get_current_root(); 
+     node_t** root = get_current_root();
+     void* ptr = NULL;
+     if ( !(*root) ) ptr = create_root(root, size);
+     else if ( (*root)->left != __sentinel || (*root)->right != __sentinel ) ptr = search_node(root, size); 
+     else ptr = split_segment(root, size); 
+     return ptr; 
+}
 
-    if ( !root ) {
-        *root = add_mem_page( size );
-        node_t* used_node = init_node( *root, size, __red, __in_use );
-        *root = (node_t *)((u8 *)used_node + size + 2 * sizeof(header_t));
-        *root = init_node(*root, PAGES(size) - (size + 4 * sizeof(header_t)), __black, __free );  
-        ptr = (u8 *)used_node + sizeof(header_t);
-        current_roots[0] = *root; 
+static void* create_root ( node_t** root, u64 size ) {
+    *root = add_mem_page(PAGES(size));
+    if ( !*root ) {
+        fprintf(stderr, "Not enough memory in the system\n");
+        return NULL; 
     }
-    else if ( (*root)->left == (*root)->right ) { /* still splitting memory */
-        ptr = (u8 *)root + sizeof(header_t);
-        u64 new_size = get_size( (*root)->header ) - size;
-        bool status = get_status( (*root)->header );
-        bool color = get_color( (*root)->header );
+    node_t* node = init_node(*root, size, __red, __in_use);
+    void* new_start = (void *)((u8 *)node + size + 2 * sizeof(header_t));
+    u64 new_size = PAGES(size) - (get_size(node->header) + 2 * sizeof(header_t));  
+    *root = init_node(new_start, new_size, __red, __free);
+    return (void *)((u8 *)node + sizeof(header_t)); 
+}
 
-        if ( new_size <= size ) { /* last split in the memory segment */
-            node_t* new_node = init_node(root, new_size - sizeof(header_t), __red, __free);  
-            *root = add_mem_page(new_size);
-            *root = init_node(root, PAGES(size), __black, __free); 
-            insert( root, new_node ); 
+static void* search_node ( node_t** root, u64 size ) {
+    node_t* node = search(*root, size);
+    void* ptr = NULL; 
+    if ( node != __sentinel ) {
+        delete(root, node);
+        ptr = (void *)((u8 *)node + sizeof(header_t)); 
+    }
+    else {
+        ptr = create_root(&node, size); 
+        insert(root, node); 
+    }
+    return ptr; 
+}
+
+static void* split_segment ( node_t** root, u64 size ) {
+    void* ptr = NULL; 
+    i64 curr_seg_size = get_size((*root)->header) + 2 * sizeof(header_t);
+    i64 diff = curr_seg_size - (size + 2 * sizeof(header_t));
+    if ( diff >= MIN_SEG_SIZE ) {
+        node_t* node = init_node( *root, size, __red, __in_use );
+        void* new_start = (void *)((u8 *)node + size + 2 * sizeof(header_t)); 
+        *root = init_node(new_start, diff, __black, __free); 
+        ptr = (void *)((u8 *)node + sizeof(header_t)); 
+    }
+    else {
+        node_t* node = *root;
+        *root = add_mem_page(PAGES(1));
+        if ( !(*root) ) {
+            fprintf(stderr, "Not enough memory system\n");
+            return NULL;
         }
-        
-        else  { /* main split */
-            *root = (node_t *)( (u8*) root + 2 * sizeof(header_t) + size );
-            *root = init_node( *root, size, color, status ); 
-        }
-
-        current_roots[get_current_root_id()] = *root; /* update the root */
+        *root = init_node(*root, PAGES(1), __black, __free); 
+        ptr = (void *)((u8 *)node + sizeof(header_t));  
     }
-    else { /* now we search in a free list */
-        node_t* result = search (*root, size);
-        delete(root, result);
-        ptr = (u8 *)result + sizeof(header_t); 
-    }
-
-    return ptr; /* let the user handle the NULL case */  
+    return ptr; 
 }
 
 void* reallocate ( void* ptr, u64 size ) {
-    void* new_ptr = allocate ( size ); 
-    if ( !new_ptr ) {
-        print_error("Malloc function returned NULL ptr\n"); 
+    node_t* node = get_node(ptr);
+
+    if ( get_size(node->header) <= size ) {
+        fprintf(stderr, "Reallocation size needs to be bigger than previous size\n");
         return NULL; 
     }
-    return memcopy(ptr, new_ptr, size) ? new_ptr : NULL; /* let the user handle the NULL case */ 
+    
+    void* new_ptr = allocate(size);
+    u8* aux1 = ptr;
+    u8* aux2 = new_ptr; 
+    for ( i64 i = 0; i < size; i++ ) aux2[i] = aux1[i];
+
+    return new_ptr;  
 }
 
 void deallocate ( void* ptr ) {
-    node_t* node = (node_t *) ((u8*) ptr - sizeof(header_t));
+    node_t* node = get_node(ptr);
 
     if ( get_status(node->header) ) {
-        print_error("Double free operation\n"); 
-        return;     
+        fprintf(stderr, "Double free operation\n");
+        return; 
     }
 
-    set_status(&node->header, __free);
-
-    node_t* prev_node = get_prev_node(node); 
-    node_t* next_node = get_next_node(node);
-
-    /* merge nodes */    
-    node_t* merged_node = __sentinel;
-    if ( get_status(prev_node->header) ) {
-        delete(get_current_root(), prev_node);
-        merged_node = merge_nodes(prev_node, node); 
-    }
-
-    if ( get_status(next_node->header) ) {
-        delete(get_current_root(), next_node);
-        merged_node = merged_node == __sentinel ? merge_nodes(node, next_node) : merge_nodes(merged_node, next_node); 
-    }
-
-    if ( merged_node == __sentinel ) insert(get_current_root(), node);
-    else insert(get_current_root(), merged_node); 
-}
-
-static bool memcopy( void* src, void* dest, u64 size ) { 
-    u8* src_aux = src;
-    u8* dest_aux = dest;
-
-    if ( src + size == dest || dest + size == src ) {
-        print_error("overlapping memory segments\n");
-        return false; 
-    }
+    /*
+        Before trying to merge nodes, we need to know the memory segments we're working with in order
+        to avoid segmentation faults. By now, I think this is enough. How should I store the pairs of
+        addresses that each page gave in add_mem_page()?   
+     */
     
-    for ( u64 i = 0; i < size; i++ ) dest_aux[i] = src_aux[i];  
-
-    return true;
+    set_status(&node->header, __free);
+    set_color(&node->header, __red);
+    insert(get_current_root(), node); 
 }
 
-node_t** get_current_root ( void ) { /* will help to mange threads */
+static node_t** get_current_root ( void ) { /* will help to mange threads */
     return current_roots[0]->header == 0 ? NULL : &current_roots[0]; 
 }
 
-u16 get_current_root_id ( void ) { /* main root is 0 */
+static u16 get_current_root_id ( void ) { /* main root is 0 */
     return 0; 
 }

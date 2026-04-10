@@ -25,6 +25,7 @@ add_executable(run_tests
     test/test.c
     test/rand.c
     test/rb_tree_test.c
+    test/allocator_test.c
 )
 
 # Link the executable to your malloc core

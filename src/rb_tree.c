@@ -1,8 +1,8 @@
 #include "../include/base.h"
 #include "../include/rb_tree.h"
-#include "header.h"
+
+#include <limits.h>
 #include <stdbool.h>
-#include <stdint.h>
 #include <stdio.h>
 
 static node_t __sentinel_value = {
@@ -120,7 +120,7 @@ node_t* init_node ( void* ptr, u64 size, bool color, bool status ) { /* init nod
 node_t* search ( node_t* root, u64 target ) { /* best fit algorithm */
     node_t* current = root;
     node_t* ans = __sentinel;
-    u64 min_size = (u64) 1e18;
+    u64 min_size = (u64) LLONG_MAX;
     
     while ( current != __sentinel ) { /* look for the node that minimizes the difference */
          u64 size = get_size(current->header);
@@ -128,7 +128,8 @@ node_t* search ( node_t* root, u64 target ) { /* best fit algorithm */
              ans = current;
              break; 
          }
-         else if ( size > target && (size - target) < (size - min_size) ) {
+         else if ( size > target && (size - target) <= (size - min_size) ) {
+             min_size = size;  
              ans = current;
              current = current->left;
          }

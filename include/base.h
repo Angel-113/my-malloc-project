@@ -5,9 +5,6 @@
 #include <stdbool.h>
 
 extern void print_error ( const char* error );
-extern void log_error ( const char* error ); 
-
-extern char** errors; /* for loggin errors */
 
 typedef unsigned long long u64;
 typedef unsigned long u32;
